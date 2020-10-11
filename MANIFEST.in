@@ -1,0 +1,3 @@
+include tpDcc/libs/curves/__logging__.ini
+include versioneer.py
+include tpDcc/libs/curves/_version.py
