@@ -331,12 +331,20 @@ def delete_curve(curve_name, curves_path=None):
     return True
 
 
-def create_curve(curve_type, curves_path=None, curve_name='new_curve'):
+def create_curve(
+        curve_type, curves_path=None, curve_name='new_curve', curve_size=1.0, translate_offset=(0.0, 0.0, 0.0),
+        scale=(1.0, 1.0, 1.0), axis_order='XYZ', mirror=None, parent=None):
     """
     Creates the curve stored in the given path
     :param curve_type: str, type of the control to create
     :param curves_path: str, path that stores control data
     :param curve_name: str, name of the transform node of the created control
+    :param curve_size: float, global size of the curve
+    :param translate_offset: tuple(float, float, float), XYZ translation offset to apply to the curve
+    :param scale: tuple(float, float, float), XYZ scale to apply to the curve
+    :param axis_order: str, axis order of the curve. Default is XYZ.
+    :param mirror: str or None, axis mirror to apply to the curve shapes (None, 'X', 'Y' or 'Z')
+    :param parent: str or None, if given control shapes will be parented into this transform
     :return:
     """
 
@@ -351,11 +359,13 @@ def create_curve(curve_type, curves_path=None, curve_name='new_curve'):
     if not control_data:
         return None
 
-    return create_curve_from_data(control_data, name=curve_name)
+    return create_curve_from_data(
+        control_data, name=curve_name, curve_size=curve_size, translate_offset=translate_offset, scale=scale,
+        axis_order=axis_order, mirror=mirror, parent=parent)
 
 
 @reroute.reroute_factory(LIB_ID, 'curveslib')
-def create_curve_from_data(control_data, *args, **kwargs):
+def create_curve_from_data(control_data, **kwargs):
     """
     Creates a new curve from the given curve data
     :param control_data: dict

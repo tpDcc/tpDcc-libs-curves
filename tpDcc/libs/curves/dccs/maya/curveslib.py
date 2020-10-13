@@ -14,15 +14,22 @@ from tpDcc.dccs.maya import api
 from tpDcc.dccs.maya.api import curves, node as api_node
 
 
-def create_curve_from_data(curve_data, target_object=None, name='new_curve'):
+def create_curve_from_data(curve_data, **kwargs):
     """
     Creates a new curve
     :param curve_data: str, shape name from the dictionary
-    :param target_object: str, object(s) on which we will create the control
-    :param name: str, name of the curve
     """
 
-    return curves.create_curve_shape(curve_data, parent=target_object)
+    curve_size = kwargs.get('curve_size', 1.0)
+    translate_offset = kwargs.get('translate_offset', (0.0, 0.0, 0.0))
+    scale = kwargs.get('scale', (1.0, 1.0, 1.0))
+    axis_order = kwargs.get('axis_order', 'XYZ')
+    mirror = kwargs.get('mirror', None)
+    parent = kwargs.get('parent', None)
+
+    return curves.create_curve_shape(
+        curve_data, curve_size=curve_size, translate_offset=translate_offset, scale=scale, axis_order=axis_order,
+        mirror=mirror, parent=parent)
 
 
 def get_curve_data(curve_shape_node, space=None, color_data=False):
@@ -41,12 +48,13 @@ def get_curve_data(curve_shape_node, space=None, color_data=False):
     curve = api.NurbsCurveFunction(curve_shape_node.node())
 
     data.update({
-        'knots': tuple(curve.get_knot_values()),
+        # 'knots': tuple(curve.get_knot_values()),
         'cvs': [cv[:-1] for cv in map(tuple, curve.get_cv_positions(space))],
         'degree': curve.get_degree(),
         'form': curve.get_form(),
         'matrix': tuple(api_node.get_world_matrix(curve.obj.object()))
     })
+    # data['knots'] = tuple([float(i) for i in range(-data['degree'] + 1, len(data['cvs']))])
 
     return data
 
