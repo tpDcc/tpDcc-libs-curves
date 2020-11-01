@@ -7,9 +7,11 @@ Module that contains Dcc commands to create curves in Maya
 
 from __future__ import print_function, division, absolute_import
 
+import maya.cmds
+import maya.api.OpenMaya
+
 from tpDcc.core import command
 from tpDcc.libs.curves.core import curveslib
-import tpDcc.dccs.maya as maya
 from tpDcc.dccs.maya.api import node as api_node
 
 
@@ -32,7 +34,7 @@ class CreateCurveFromPath(command.DccCommand, object):
         if not curve_type:
             arguments['curve_type'] = 'circle'
         if parent is not None:
-            handle = maya.OpenMaya.MObjectHandle(parent)
+            handle = maya.api.OpenMaya.MObjectHandle(parent)
             if not handle.isValid() or not handle.isAlive():
                 self.cancel('Parent no longer exists in current scene: "{}"'.format(parent))
             parent = handle
@@ -49,8 +51,8 @@ class CreateCurveFromPath(command.DccCommand, object):
         parent_mobj, shape_mobjs = curveslib.create_curve(
             curve_type, curves_path=curves_path, curve_size=curve_size, translate_offset=translate_offset,
             scale=scale, axis_order=axis_order, mirror=mirror, parent=parent)
-        self._parent = maya.OpenMaya.MObjectHandle(parent_mobj)
-        self._shape_nodes = map(maya.OpenMaya.MObjectHandle, shape_mobjs)
+        self._parent = maya.api.OpenMaya.MObjectHandle(parent_mobj)
+        self._shape_nodes = map(maya.api.OpenMaya.MObjectHandle, shape_mobjs)
 
         return parent_mobj, shape_mobjs
 

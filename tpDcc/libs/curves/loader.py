@@ -7,7 +7,7 @@ Initialization module for tpDcc.libs.curves
 
 import os
 
-import tpDcc as tp
+from tpDcc import dcc
 from tpDcc.core import command
 
 
@@ -21,7 +21,7 @@ def init(*args, **kwargs):
     if not runner:
         return
 
-    commands_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'dccs', tp.Dcc.get_name(), 'commands')
+    commands_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'dccs', dcc.get_name(), 'commands')
     if not os.path.isdir(commands_path):
         return
 

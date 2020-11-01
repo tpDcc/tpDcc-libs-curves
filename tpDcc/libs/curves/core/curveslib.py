@@ -8,16 +8,17 @@ Module that contains tpDcc-libs-curves function core implementations
 from __future__ import print_function, division, absolute_import
 
 import os
+import logging
 
-import tpDcc as tp
-from tpDcc.libs.python import python, fileio, jsonio, path as path_utils
 from tpDcc.core import library, reroute
+from tpDcc.managers import configs
+from tpDcc.libs.python import python, fileio, jsonio, path as path_utils
 
 LIB_ID = 'tpDcc-libs-curves'
 LIB_ENV = LIB_ID.replace('-', '_').upper()
 CURVE_EXT = '.curve'
 
-LOGGER = tp.LogsMgr().get_logger('tpDcc-libs-curves')
+LOGGER = logging.getLogger('tpDcc-libs-curves')
 
 
 class CurvesLib(library.DccLibrary, object):
@@ -31,9 +32,7 @@ class CurvesLib(library.DccLibrary, object):
             'name': 'Curves Library',
             'id': LIB_ID,
             'supported_dccs': {'maya': ['2017', '2018', '2019', '2020']},
-            'tooltip': 'Library to manage curves in a DCC agnostic way',
-            'logger_dir': os.path.join(os.path.expanduser('~'), 'tpDcc', 'logs', 'libs'),
-            'logger_level': 'INFO',
+            'tooltip': 'Library to manage curves in a DCC agnostic way'
         }
         base_tool_config.update(tool_config)
 
@@ -47,7 +46,7 @@ def iterate_curve_root_paths():
     """
 
     all_curves_paths = list()
-    shape_lib_config = tp.ConfigsMgr().get_library_config('tpDcc-libs-curves')
+    shape_lib_config = configs.get_library_config('tpDcc-libs-curves')
     if shape_lib_config:
         curve_paths = shape_lib_config.get('curve_paths')
         curve_paths = python.force_list(curve_paths)
@@ -333,7 +332,7 @@ def delete_curve(curve_name, curves_path=None):
 
 def create_curve(
         curve_type, curves_path=None, curve_name='new_curve', curve_size=1.0, translate_offset=(0.0, 0.0, 0.0),
-        scale=(1.0, 1.0, 1.0), axis_order='XYZ', mirror=None, parent=None):
+        scale=(1.0, 1.0, 1.0), axis_order='XYZ', mirror=None, color=None, parent=None):
     """
     Creates the curve stored in the given path
     :param curve_type: str, type of the control to create
@@ -344,6 +343,7 @@ def create_curve(
     :param scale: tuple(float, float, float), XYZ scale to apply to the curve
     :param axis_order: str, axis order of the curve. Default is XYZ.
     :param mirror: str or None, axis mirror to apply to the curve shapes (None, 'X', 'Y' or 'Z')
+    :param color: tuple(float, float, float) or int, color of the curve
     :param parent: str or None, if given control shapes will be parented into this transform
     :return:
     """
@@ -355,13 +355,13 @@ def create_curve(
     if not control_path or not os.path.isfile(control_path):
         return None
 
-    control_data = jsonio.read_file(control_path)
+    control_data = jsonio.read_file(control_path, as_ordered_dict=True)
     if not control_data:
         return None
 
     return create_curve_from_data(
         control_data, name=curve_name, curve_size=curve_size, translate_offset=translate_offset, scale=scale,
-        axis_order=axis_order, mirror=mirror, parent=parent)
+        axis_order=axis_order, mirror=mirror, color=color, parent=parent)
 
 
 @reroute.reroute_factory(LIB_ID, 'curveslib')

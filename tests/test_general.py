@@ -7,7 +7,7 @@ Module that contains general tests for tpDcc-libs-nameit
 
 import pytest
 
-from tpDcc.libs.nameit import __version__
+from tpDcc.libs.curves import __version__
 
 
 def test_version():
