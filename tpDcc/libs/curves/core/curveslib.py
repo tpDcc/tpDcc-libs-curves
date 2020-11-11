@@ -102,14 +102,15 @@ def get_curve_names(curves_path=None):
     return list(iterate_available_curve_names(curves_path))
 
 
-def find_curve_path_by_name(curve_name):
+def find_curve_path_by_name(curve_name, curves_path=None):
     """
     Returns the absolute curve path with the given name
     :param curve_name: str, name of the curve to find
+    :param curves_path: str
     :return: str
     """
 
-    for curve_path in iterate_curve_files():
+    for curve_path in iterate_curve_files(curves_path=curves_path):
         split_name = os.path.splitext(os.path.basename(curve_path))
         if split_name[0] == curve_name:
             return curve_path
