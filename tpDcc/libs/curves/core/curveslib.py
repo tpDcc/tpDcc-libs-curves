@@ -10,33 +10,47 @@ from __future__ import print_function, division, absolute_import
 import os
 import logging
 
-from tpDcc.core import library, reroute
+from tpDcc import dcc
+from tpDcc.core import library, reroute, command
 from tpDcc.managers import configs
-from tpDcc.libs.python import python, fileio, jsonio, path as path_utils
+from tpDcc.libs.python import python, osplatform, fileio, jsonio, path as path_utils
 
-LIB_ID = 'tpDcc-libs-curves'
-LIB_ENV = LIB_ID.replace('-', '_').upper()
 CURVE_EXT = '.curve'
 
 LOGGER = logging.getLogger('tpDcc-libs-curves')
 
 
 class CurvesLib(library.DccLibrary, object):
+
+    ID = 'tpDcc-libs-curves'
+
     def __init__(self, *args, **kwargs):
         super(CurvesLib, self).__init__(*args, **kwargs)
 
     @classmethod
-    def config_dict(cls, file_name=None):
-        base_tool_config = library.DccLibrary.config_dict(file_name=file_name)
+    def config_dict(cls):
+        base_tool_config = library.DccLibrary.config_dict()
         tool_config = {
             'name': 'Curves Library',
-            'id': LIB_ID,
+            'id': CurvesLib.ID,
             'supported_dccs': {'maya': ['2017', '2018', '2019', '2020']},
-            'tooltip': 'Library to manage curves in a DCC agnostic way'
+            'tooltip': 'Library to manage curves in a DCC agnostic way',
+            'root': cls.ROOT if hasattr(cls, 'ROOT') else '',
+            'file': cls.PATH if hasattr(cls, 'PATH') else '',
         }
         base_tool_config.update(tool_config)
 
         return base_tool_config
+
+    @classmethod
+    def load(cls):
+        # Initialize environment variable that contains paths were curves libs command are located
+        # This environment variable is used by the command runner
+        dcc_name = dcc.client().get_name()
+        commands_path = path_utils.clean_path(
+            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'dccs', dcc_name, 'commands'))
+        if os.path.isdir(commands_path):
+            command.CommandRunner().manager().register_path(commands_path, 'tpDcc')
 
 
 def iterate_curve_root_paths():
@@ -52,7 +66,7 @@ def iterate_curve_root_paths():
         curve_paths = python.force_list(curve_paths)
         all_curves_paths.extend(curve_paths)
 
-    curve_paths = os.environ.get(LIB_ENV, '').split(os.pathsep)
+    curve_paths = os.environ.get(CurvesLib.ID.replace('-', '_').upper(), '').split(os.pathsep)
     all_curves_paths.extend(curve_paths)
 
     all_curves_paths = list(set(all_curves_paths))
@@ -365,7 +379,7 @@ def create_curve(
         axis_order=axis_order, mirror=mirror, color=color, parent=parent)
 
 
-@reroute.reroute_factory(LIB_ID, 'curveslib')
+@reroute.reroute_factory(CurvesLib.ID, 'curveslib')
 def create_curve_from_data(control_data, **kwargs):
     """
     Creates a new curve from the given curve data
@@ -376,7 +390,7 @@ def create_curve_from_data(control_data, **kwargs):
     raise NotImplementedError('Function create_control_from_data not implemented for current DCC!')
 
 
-@reroute.reroute_factory(LIB_ID, 'curveslib')
+@reroute.reroute_factory(CurvesLib.ID, 'curveslib')
 def get_curve_data(curve_shape_node, space=None, color_data=False):
     """
     Returns curve data from the given curve shape object
@@ -389,7 +403,7 @@ def get_curve_data(curve_shape_node, space=None, color_data=False):
     raise NotImplementedError('Function get_curve_data not implemented for current DCC!')
 
 
-@reroute.reroute_factory(LIB_ID, 'curveslib')
+@reroute.reroute_factory(CurvesLib.ID, 'curveslib')
 def serialize_curve(curve_node, absolute_position=True, absolute_rotation=True, degree=None, periodic=False):
     """
     Returns dictionary that contains all information for rebuilding given NURBS curve
