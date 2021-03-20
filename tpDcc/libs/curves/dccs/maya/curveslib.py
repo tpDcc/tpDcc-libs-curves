@@ -36,50 +36,53 @@ def create_curve_from_data(curve_data, **kwargs):
         mirror=mirror, color=color, parent=parent)
 
 
+def update_curve_from_data(transform_node, curve_data):
+    """
+    Updates given transform node shapes with the shapes stored in the given data dictionary
+    :param transform_node: str
+    :param curve_data: dict
+    """
+
+    pass
+
+
 def get_curve_data(curve_shape_node, space=None, color_data=False, parent=None):
     """
     Returns curve data from the given curve shape object
-    :param curve_shape_node: MObject
+    :param curve_shape_node: MObject or str
     :param space: MSpace, space we want to retrieve curve data from
     :param color_data: bool, Whether to return or not color data of the curve
     :param parent:
     :return: dict
     """
 
-    if isinstance(curve_shape_node, maya.api.OpenMaya.MObject):
-        curve_shape_node = maya.api.OpenMaya.MFnDagNode(curve_shape_node).getPath()
-
-    if parent and isinstance(parent, maya.api.OpenMaya.MObject):
-        parent = maya.api.OpenMaya.MFnDagNode(parent).getPath().partialPathName()
-
-    data = api_node.get_node_color_data(curve_shape_node.node()) if color_data else dict()
-    curve = api.NurbsCurveFunction(curve_shape_node.node())
-
-    data.update({
-        # 'knots': tuple(curve.get_knot_values()),
-        'cvs': [cv[:-1] for cv in map(tuple, curve.get_cv_positions(space))],
-        'degree': curve.get_degree(),
-        'form': curve.get_form(),
-        'matrix': tuple(api_node.get_world_matrix(curve.obj.object())),
-        'shape_parent': parent
-    })
-    # data['knots'] = tuple([float(i) for i in range(-data['degree'] + 1, len(data['cvs']))])
-
-    return data
+    return curves.get_curve_data(curve_shape_node, space=space, color_data=color_data, parent=parent)
 
 
-def serialize_curve(curve_node, space=None, degree=None, periodic=False, normalize=True):
+def get_curve_data_from_transform(transform_node, space=None, color_data=False):
+    """
+    Returns curve data from the given curve shape object
+    :param transform_node: MObject
+    :param space: MSpace, space we want to retrieve curve data from
+    :param color_data: bool, Whether to return or not color data of the curve
+    :return: dict
+    """
+
+    transform_node = maya.api.OpenMaya.MFnDagNode(api_node.as_mobject(transform_node)).getPath()
+    curves_data = curves.serialize_transform_curve(node=transform_node, space=space, color_data=color_data)
+
+    return curves_data
+
+
+def serialize_curve(curve_node, normalize=True, **kwargs):
     """
     Returns dictionary that contains all information for rebuilding given NURBS curve
     :param curve_node: str, name of the curve to serialize
-    :param space: absolute_position, bool
-    :param degree: degree, int
-    :param periodic: bool
     :param normalize: bool, Whether or not curve CVs should be normalized to stay in 0 to 1 space
     :return: dict
     """
 
-    space = space or maya.OpenMaya.MSpace.kObject
+    space = kwargs.pop('space', None) or maya.api.OpenMaya.MSpace.kObject
 
     if python.is_string(curve_node):
         curve_node = api_node.as_mobject(curve_node)
