@@ -10,47 +10,13 @@ from __future__ import print_function, division, absolute_import
 import os
 import logging
 
-from tpDcc import dcc
-from tpDcc.core import library, reroute, command
+from tpDcc.core import reroute
 from tpDcc.managers import configs
-from tpDcc.libs.python import python, osplatform, fileio, jsonio, path as path_utils
+from tpDcc.libs.python import python, fileio, jsonio, path as path_utils
 
-CURVE_EXT = '.curve'
+from tpDcc.libs.curves.core import consts
 
-LOGGER = logging.getLogger('tpDcc-libs-curves')
-
-
-class CurvesLib(library.DccLibrary, object):
-
-    ID = 'tpDcc-libs-curves'
-
-    def __init__(self, *args, **kwargs):
-        super(CurvesLib, self).__init__(*args, **kwargs)
-
-    @classmethod
-    def config_dict(cls):
-        base_tool_config = library.DccLibrary.config_dict()
-        tool_config = {
-            'name': 'Curves Library',
-            'id': CurvesLib.ID,
-            'supported_dccs': {'maya': ['2017', '2018', '2019', '2020']},
-            'tooltip': 'Library to manage curves in a DCC agnostic way',
-            'root': cls.ROOT if hasattr(cls, 'ROOT') else '',
-            'file': cls.PATH if hasattr(cls, 'PATH') else '',
-        }
-        base_tool_config.update(tool_config)
-
-        return base_tool_config
-
-    @classmethod
-    def load(cls):
-        # Initialize environment variable that contains paths were curves libs command are located
-        # This environment variable is used by the command runner
-        dcc_name = dcc.client().get_name()
-        commands_path = path_utils.clean_path(
-            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'dccs', dcc_name, 'commands'))
-        if os.path.isdir(commands_path):
-            command.CommandRunner().manager().register_path(commands_path, 'tpDcc')
+logger = logging.getLogger(consts.LIB_ID)
 
 
 def iterate_curve_root_paths():
@@ -66,7 +32,7 @@ def iterate_curve_root_paths():
         curve_paths = python.force_list(curve_paths)
         all_curves_paths.extend(curve_paths)
 
-    curve_paths = os.environ.get(CurvesLib.ID.replace('-', '_').upper(), '').split(os.pathsep)
+    curve_paths = os.environ.get(consts.LIB_ID.replace('-', '_').upper(), '').split(os.pathsep)
     all_curves_paths.extend(curve_paths)
 
     all_curves_paths = list(set(all_curves_paths))
@@ -91,7 +57,7 @@ def iterate_curve_files(curves_path=None):
     for curve_path in paths_to_find:
         for root_dir, _, filenames in os.walk(curve_path):
             for file_name in filenames:
-                if file_name.endswith(CURVE_EXT):
+                if file_name.endswith(consts.CURVE_EXT):
                     yield path_utils.clean_path(os.path.join(root_dir, file_name))
 
 
@@ -146,14 +112,14 @@ def load_curve_from_name(curve_name, curves_path=None):
             if curve_path:
                 break
             for file_name in filenames:
-                if file_name.endswith(CURVE_EXT) and file_name:
+                if file_name.endswith(consts.CURVE_EXT) and file_name:
                     curve_path = path_utils.clean_path(os.path.join(root_dir, file_name))
                     break
     else:
         curve_path = find_curve_path_by_name(curve_name)
 
     if not curve_path:
-        LOGGER.warning('Curve with name "{}" does not exists!'.format(curve_path))
+        logger.warning('Curve with name "{}" does not exists!'.format(curve_path))
         return None
 
     return load_curve_from_path(curve_path)
@@ -169,7 +135,7 @@ def load_curve_from_path(curve_path):
     if not curve_path or not os.path.isfile(curve_path):
         return None
     path_ext = os.path.splitext(os.path.basename(curve_path))[0]
-    if not path_ext != CURVE_EXT:
+    if not path_ext != consts.CURVE_EXT:
         return None
 
     curve_data = jsonio.read_file(curve_path)
@@ -195,7 +161,7 @@ def load_curves(curves_path=None):
     curves_data = list()
     for root_dir, _, filenames in os.walk(curves_path):
         for file_name in filenames:
-            if file_name.endswith(CURVE_EXT):
+            if file_name.endswith(consts.CURVE_EXT):
                 curve_data = load_curve_from_path(path_utils.clean_path(os.path.join(root_dir, file_name)))
                 if not curve_data:
                     continue
@@ -204,7 +170,7 @@ def load_curves(curves_path=None):
     return curves_data
 
 
-def save_curve(curve_node, curve_name, curves_path=None, override=True, save_matrix=False):
+def save_curve(curve_node, curve_name, curves_path=None, override=True, save_matrix=False, normalize=True):
     """
     Saves the given curve transform node shapes into the given directory path
     :param curve_node: str
@@ -212,29 +178,30 @@ def save_curve(curve_node, curve_name, curves_path=None, override=True, save_mat
     :param curves_path: str
     :param override: bool
     :param save_matrix: bool
+    :param normalize: bool
     :return:
     """
 
     if not curves_path or not os.path.isdir(curves_path):
         curves_path = list(iterate_curve_root_paths())
         if not curves_path:
-            LOGGER.warning('Impossible to save curve because no path to save curve defined')
+            logger.warning('Impossible to save curve because no path to save curve defined')
             return False
         curves_path = curves_path[0]
     if not curves_path or not os.path.isdir(curves_path):
-        LOGGER.warning(
+        logger.warning(
             'Impossible to save curve because path to save curve into does not exists: "{}"'.format(curves_path))
         return False
 
     curve_file_name = curve_name
-    if not curve_name.endswith(CURVE_EXT):
-        curve_file_name = '{}{}'.format(curve_name, CURVE_EXT)
+    if not curve_name.endswith(consts.CURVE_EXT):
+        curve_file_name = '{}{}'.format(curve_name, consts.CURVE_EXT)
 
     if not override and curve_file_name in get_curve_names():
-        LOGGER.warning('Curve name: "{}" already exists in curves paths'.format(curve_name))
+        logger.warning('Curve name: "{}" already exists in curves paths'.format(curve_name))
         return None, None
 
-    curve_data = serialize_curve(curve_node)
+    curve_data = serialize_curve(curve_node, normalize=normalize)
     if not save_matrix:
         for curve_shape in curve_data:
             curve_data[curve_shape].pop('matrix', None)
@@ -259,20 +226,20 @@ def save_curve_from_data(curve_data, curve_name, curves_path=None, override=True
     if not curves_path or not os.path.isdir(curves_path):
         curves_path = list(iterate_curve_root_paths())
         if not curves_path:
-            LOGGER.warning('Impossible to save curve because no path to save curve defined')
+            logger.warning('Impossible to save curve because no path to save curve defined')
             return False
         curves_path = curves_path[0]
     if not curves_path or not os.path.isdir(curves_path):
-        LOGGER.warning(
+        logger.warning(
             'Impossible to save curve because path to save curve into does not exists: "{}"'.format(curves_path))
         return False
 
     curve_file_name = curve_name
-    if not curve_name.endswith(CURVE_EXT):
-        curve_file_name = '{}{}'.format(curve_name, CURVE_EXT)
+    if not curve_name.endswith(consts.CURVE_EXT):
+        curve_file_name = '{}{}'.format(curve_name, consts.CURVE_EXT)
 
     if not override and curve_file_name in get_curve_names():
-        LOGGER.warning('Control name: "{}" already exists in curves paths'.format(curve_name))
+        logger.warning('Control name: "{}" already exists in curves paths'.format(curve_name))
         return None, None
 
     curve_path = path_utils.clean_path(os.path.join(curves_path, curve_file_name))
@@ -294,26 +261,26 @@ def rename_curve(curve_name, new_name, curves_path=None):
     if not curves_path or not os.path.isdir(curves_path):
         curve_path = find_curve_path_by_name(curve_name)
     else:
-        curve_path = os.path.join(curves_path, '{}{}'.format(curve_name, CURVE_EXT))
+        curve_path = os.path.join(curves_path, '{}{}'.format(curve_name, consts.CURVE_EXT))
     if not curve_path or not os.path.isfile(curve_path):
-        LOGGER.warning('Curve file could not be renamed because it does not exists! "{}"'.format(curve_path))
+        logger.warning('Curve file could not be renamed because it does not exists! "{}"'.format(curve_path))
         return False
 
     curve_directory = os.path.dirname(curve_path)
-    curve_file_name = '{}{}'.format(curve_name, CURVE_EXT)
-    new_name = '{}{}'.format(new_name, CURVE_EXT)
+    curve_file_name = '{}{}'.format(curve_name, consts.CURVE_EXT)
+    new_name = '{}{}'.format(new_name, consts.CURVE_EXT)
     new_curve_path = path_utils.clean_path(os.path.join(curve_path, new_name))
     if os.path.isfile(new_curve_path):
-        LOGGER.warnign(
+        logger.warning(
             'Cannot rename curve, because a curve with the same path already exists: "{}"'.format(new_curve_path))
         return False
 
     renamed_path = fileio.rename_file(curve_file_name, curve_directory, new_name)
     if not os.path.isfile(renamed_path):
-        LOGGER.warning('Was not possible to rename curve "{}" file: "{}'.format(curve_name, curve_path))
+        logger.warning('Was not possible to rename curve "{}" file: "{}'.format(curve_name, curve_path))
         return False
 
-    LOGGER.info(
+    logger.info(
         'Curve "{}" has been renamed successfully: "{}" >> "{}"'.format(curve_name, curve_path, renamed_path))
 
     return True
@@ -329,18 +296,18 @@ def delete_curve(curve_name, curves_path=None):
     if not curves_path or not os.path.isdir(curves_path):
         curve_path = find_curve_path_by_name(curve_name)
     else:
-        curve_path = os.path.join(curves_path, '{}{}'.format(curve_name, CURVE_EXT))
+        curve_path = os.path.join(curves_path, '{}{}'.format(curve_name, consts.CURVE_EXT))
     if not curve_path or not os.path.isfile(curve_path):
-        LOGGER.warning('Curve file could not be deleted because it does not exists! "{}"'.format(curve_path))
+        logger.warning('Curve file could not be deleted because it does not exists! "{}"'.format(curve_path))
         return False
 
     curve_path = path_utils.clean_path(curve_path)
     fileio.delete_file(curve_path)
     if os.path.isfile(curve_path):
-        LOGGER.warning('Was not possible to remove curve "{}" file: "{}'.format(curve_name, curve_path))
+        logger.warning('Was not possible to remove curve "{}" file: "{}'.format(curve_name, curve_path))
         return False
 
-    LOGGER.info('Curve "{}" has been deleted successfully: "{}"'.format(curve_name, curve_path))
+    logger.info('Curve "{}" has been deleted successfully: "{}"'.format(curve_name, curve_path))
 
     return True
 
@@ -366,7 +333,7 @@ def create_curve(
     if not curves_path or not os.path.isdir(curves_path):
         control_path = find_curve_path_by_name(curve_type)
     else:
-        control_path = os.path.join(curves_path, '{}{}'.format(curve_type, CURVE_EXT))
+        control_path = os.path.join(curves_path, '{}{}'.format(curve_type, consts.CURVE_EXT))
     if not control_path or not os.path.isfile(control_path):
         return None
 
@@ -379,18 +346,18 @@ def create_curve(
         axis_order=axis_order, mirror=mirror, color=color, parent=parent)
 
 
-@reroute.reroute_factory(CurvesLib.ID, 'curveslib')
-def create_curve_from_data(control_data, **kwargs):
+@reroute.reroute_factory(consts.LIB_ID, 'curveslib')
+def create_curve_from_data(curve_data, **kwargs):
     """
     Creates a new curve from the given curve data
-    :param control_data: dict
+    :param curve_data: dict
     :return:
     """
 
     raise NotImplementedError('Function create_control_from_data not implemented for current DCC!')
 
 
-@reroute.reroute_factory(CurvesLib.ID, 'curveslib')
+@reroute.reroute_factory(consts.LIB_ID, 'curveslib')
 def get_curve_data(curve_shape_node, space=None, color_data=False):
     """
     Returns curve data from the given curve shape object
@@ -403,15 +370,25 @@ def get_curve_data(curve_shape_node, space=None, color_data=False):
     raise NotImplementedError('Function get_curve_data not implemented for current DCC!')
 
 
-@reroute.reroute_factory(CurvesLib.ID, 'curveslib')
-def serialize_curve(curve_node, absolute_position=True, absolute_rotation=True, degree=None, periodic=False):
+@reroute.reroute_factory(consts.LIB_ID, 'curveslib')
+def get_curve_data_from_transform(transform_node, space=None, color_data=False):
+    """
+    Returns curve data from the given curve shape object
+    :param transform_node: MObject
+    :param space: MSpace, space we want to retrieve curve data from
+    :param color_data: bool, Whether to return or not color data of the curve
+    :return: dict
+    """
+
+    raise NotImplementedError('Function get_curve_data_from_transform not implemented for current DCC!')
+
+
+@reroute.reroute_factory(consts.LIB_ID, 'curveslib')
+def serialize_curve(curve_node, normalize=True, **kwargs):
     """
     Returns dictionary that contains all information for rebuilding given NURBS curve
     :param curve_node: str, name of the curve to serialize
-    :param absolute_position: absolute_position, bool
-    :param absolute_rotation: absolute_rotation, bool
-    :param degree: degree, int
-    :param periodic: periodic, bool
+    :param normalize: periodic, bool
     :return: dict
     """
 

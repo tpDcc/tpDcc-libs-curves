@@ -10,6 +10,10 @@ from __future__ import print_function, division, absolute_import
 import os
 import logging.config
 
+from tpDcc.libs.curves.core import consts
+
+logger = logging.getLogger(consts.LIB_ID)
+
 
 def create_logger(dev=False):
     """
